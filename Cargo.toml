@@ -9,10 +9,10 @@ repository = "https://github.com/prozak/libarena-rs"
 readme = "README.md"
 keywords = ["bpf", "ebpf", "arena", "allocator", "no-std"]
 categories = ["no-std", "memory-management"]
-# v1 is git-distributed: the crate is useless without mk/, csrc/ and the
-# submodules, and vendor/rust-bpf carries no license yet (must be excluded
-# before any publish).
-publish = false
+# The crates.io package carries mk/, csrc/, scripts/ and the vendored
+# libarena, but not vendor/rust-bpf (upstream carries no license yet): a
+# crates.io copy needs RUSTBPF pointed at a rust-bpf checkout. The git
+# repository with submodules is the primary distribution.
 exclude = ["vendor/rust-bpf"]
 
 [lib]

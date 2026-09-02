@@ -55,7 +55,10 @@ include $(LIBARENA_RS)/mk/libarena.mk
 all: $(LIBARENA_RS_PROG_OBJS) $(LIBARENA_RS_BLD)/arena-runner
 ```
 
-Every `progs/<name>.rs` becomes `bld/<name>.bpf.o`. A program:
+Every `progs/<name>.rs` becomes `bld/<name>.bpf.o`. (The crates.io package
+contains the same files minus `vendor/rust-bpf`; with a copy from
+`~/.cargo/registry`, set `RUSTBPF` to a
+[rust-bpf](https://github.com/prozak/rust-bpf) checkout.) A program:
 
 ```rust
 #![no_std]
