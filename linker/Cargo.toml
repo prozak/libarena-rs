@@ -1,0 +1,18 @@
+[package]
+name = "arena-linker"
+version = "0.2.0"
+edition = "2021"
+license = "LGPL-2.1-only OR BSD-2-Clause"
+description = "Linker for Rust BPF programs using libarena-rs: merges rustc bitcode with libarena, runs the verifier-friendly IR pipeline, emits the .bpf.o"
+repository = "https://github.com/prozak/libarena-rs"
+readme = "README.md"
+keywords = ["bpf", "ebpf", "linker", "arena"]
+categories = ["development-tools::build-utils"]
+
+[[bin]]
+name = "arena-linker"
+path = "src/main.rs"
+
+exclude = ["scripts/__pycache__"]
+
+[dependencies]

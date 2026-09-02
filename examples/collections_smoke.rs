@@ -1,5 +1,4 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(target_arch = "bpf", no_std, no_main)]
 
 //! Real Rust `alloc` collections running in BPF, backed by a BPF arena via
 //! libarena's buddy allocator (see the libarena-rs README).
@@ -8,6 +7,10 @@
 //! with bpf_prog_test_run(); return 0 = pass, a small nonzero code = the
 //! failing step. Userspace must run libarena's `arena_buddy_reset` program
 //! first to initialize the allocator.
+//!
+//! On a non-BPF target this is an ordinary binary that runs the same
+//! functions over the crate's hosted allocator stand-ins (`cargo run
+//! --example collections_smoke`), so `cargo test` can build it.
 
 extern crate alloc;
 
@@ -175,4 +178,22 @@ extern "C" fn test_rs_grow_shrink(_ctx: *const c_void) -> i32 {
         return 2;
     }
     0
+}
+
+#[cfg(not(target_arch = "bpf"))]
+fn main() {
+    let tests: [(&str, extern "C" fn(*const c_void) -> i32); 6] = [
+        ("test_rs_box", test_rs_box),
+        ("test_rs_vec", test_rs_vec),
+        ("test_rs_string", test_rs_string),
+        ("test_rs_vecdeque", test_rs_vecdeque),
+        ("test_rs_sort", test_rs_sort),
+        ("test_rs_grow_shrink", test_rs_grow_shrink),
+    ];
+    let mut failed = 0;
+    for (name, f) in tests {
+        let r = f(core::ptr::null());
+        println!("{} {name}", if r == 0 { "OK  " } else { failed += 1; "FAIL" });
+    }
+    std::process::exit(failed);
 }

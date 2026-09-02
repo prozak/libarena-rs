@@ -3,5 +3,9 @@
 version = 4
 
 [[package]]
+name = "arena-linker"
+version = "0.2.0"
+
+[[package]]
 name = "libarena-rs"
-version = "0.1.0"
+version = "0.2.0"

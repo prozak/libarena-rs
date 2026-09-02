@@ -1,4 +1,6 @@
 bld/
+target/bpfel-unknown-none-v4/**/*.arena-linker/
 target/
 __pycache__/
 local.mk
+*.pyc

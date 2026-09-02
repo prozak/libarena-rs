@@ -1,6 +1,6 @@
 [package]
 name = "libarena-rs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.96"
 license = "LGPL-2.1-only OR BSD-2-Clause"
@@ -9,11 +9,8 @@ repository = "https://github.com/prozak/libarena-rs"
 readme = "README.md"
 keywords = ["bpf", "ebpf", "arena", "allocator", "no-std"]
 categories = ["no-std", "memory-management"]
-# The crates.io package carries mk/, csrc/, scripts/ and the vendored
-# libarena, but not vendor/rust-bpf (upstream carries no license yet): a
-# crates.io copy needs RUSTBPF pointed at a rust-bpf checkout. The git
-# repository with submodules is the primary distribution.
-exclude = ["vendor/rust-bpf"]
+build = "build.rs"
+include = ["src/**", "csrc/**", "vendor/libarena/LICENSE*", "vendor/libarena/libarena/src/*.c", "vendor/libarena/libarena/include/**", "targets/**", "build.rs", "README.md", "LICENSE*"]
 
 [lib]
 name = "libarena_rs"
@@ -34,3 +31,10 @@ panic-handler = []
 alloc-error-handler = []
 
 [dependencies]
+
+[workspace]
+members = ["linker"]
+
+[profile.release]
+opt-level = 3
+debug = 2

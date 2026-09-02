@@ -1,7 +1,7 @@
-# Example machine-local overrides (copy to local.mk; it is gitignored).
-LLVM_PREFIX    := /home/prozak/sources/heimdall_experiment/uml-harness/.build/llvm-install
-VMLINUX_H      := /home/prozak/sources/heimdall_experiment/uml-harness/.build/bpftool-output-qemu/vmlinux.h
-LIBBPF_INCLUDE := /home/prozak/sources/heimdall_experiment/uml-harness/.build/bpftool-output-qemu/libbpf/include
-LIBBPF_LIBS    := /home/prozak/sources/heimdall_experiment/uml-harness/.build/bpftool-output-qemu/libbpf/libbpf.a -lelf -lz
-KERNEL_BZIMAGE := /home/prozak/sources/heimdall_experiment/uml-harness/.build/bpf-next-x86/arch/x86/boot/bzImage
-VNG            := $(HOME)/.local/share/vng-venv/bin/vng
+# Machine-local overrides (copy to local.mk; gitignored). Exported to cargo.
+LLVM_PREFIX        := /home/prozak/sources/heimdall_experiment/uml-harness/.build/llvm-install
+LIBARENA_VMLINUX_H := /home/prozak/sources/heimdall_experiment/uml-harness/.build/bpftool-output-qemu/vmlinux.h
+LIBBPF_INCLUDE     := /home/prozak/sources/heimdall_experiment/uml-harness/.build/bpftool-output-qemu/libbpf/include
+LIBBPF_LIBS        := /home/prozak/sources/heimdall_experiment/uml-harness/.build/bpftool-output-qemu/libbpf/libbpf.a -lelf -lz
+KERNEL_BZIMAGE     := /home/prozak/sources/heimdall_experiment/uml-harness/.build/bpf-next-x86/arch/x86/boot/bzImage
+VNG                := $(HOME)/.local/share/vng-venv/bin/vng

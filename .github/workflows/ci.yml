@@ -5,12 +5,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { submodules: true }
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo check --all-features
       - run: cargo check --no-default-features
       - run: cargo test
       - run: cargo doc --no-deps
         env: { RUSTDOCFLAGS: -Dwarnings }
-      - run: python3 -m py_compile scripts/*.py
+      - run: cargo build --release -p arena-linker
+      - run: python3 -m py_compile linker/scripts/*.py
       - run: sudo apt-get install -y libbpf-dev
       - run: gcc -fsyntax-only -Wall -Wextra tools/runner/runner.c

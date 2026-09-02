@@ -1,35 +1,52 @@
 # SPDX-License-Identifier: LGPL-2.1 OR BSD-2-Clause
-# Builds the example programs under examples/progs and the runner.
+# Convenience wrapper: the objects come from `cargo bpf --examples` (see
+# .cargo/config.toml); this builds the linker and the runner and runs the
+# examples on a kernel.
 #
-#   make                  build examples/progs/*.rs -> bld/*.bpf.o
-#   make test             run every object on this kernel (builds as you, runs the
-#                         runner via sudo; kernel >= 6.17)
-#   make test-vng KERNEL_BZIMAGE=/path/to/bzImage   run inside a virtme-ng guest
+#   make              linker + examples + runner
+#   make test         run every example object on this kernel (sudo for the runner)
+#   make test-vng KERNEL_BZIMAGE=/path/to/bzImage
 #
-# Toolchain inputs: see mk/libarena.mk (LLVM_PREFIX, RUSTC, VMLINUX_H, ...).
-
-BPF_PROGS_DIR := examples/progs
+# Environment for the build (see README): LLVM_PREFIX, LIBARENA_VMLINUX_H,
+# LIBBPF_INCLUDE, BPF_STREAM_KFUNC, TRAP_MODE, VOID_GLOBALS, ...
 -include local.mk
-include mk/libarena.mk
+export LLVM_PREFIX LIBARENA_VMLINUX_H LIBBPF_INCLUDE BPF_STREAM_KFUNC TRAP_MODE VOID_GLOBALS
+export RUSTC_BOOTSTRAP = 1
 
-RUNNER      := $(LIBARENA_RS_BLD)/arena-runner
-RUNNER_ARGS ?=
-SUDO        ?= $(shell test $$(id -u) -eq 0 || echo sudo)
-VNG         ?= vng
+LIBBPF_INCLUDE ?= $(shell pkg-config --variable=includedir libbpf 2>/dev/null || echo /usr/include)
+LIBBPF_LIBS    ?= $(shell pkg-config --libs libbpf 2>/dev/null || echo -lbpf -lelf -lz)
+VNG            ?= vng
 KERNEL_BZIMAGE ?=
+RUNNER_ARGS    ?=
+SUDO           ?= $(shell test $$(id -u) -eq 0 || echo sudo)
 
-all: $(LIBARENA_RS_PROG_OBJS) $(RUNNER)
+OBJ_DIR := target/bpfel-unknown-none-v4/release/examples
+OBJS    := $(patsubst examples/%.rs,$(OBJ_DIR)/%,$(wildcard examples/*.rs))
+LINKER  := target/release/arena-linker
+RUNNER  := target/arena-runner
+
+all: $(OBJS) $(RUNNER)
+
+$(LINKER): $(wildcard linker/src/*.rs linker/scripts/*.py) linker/Cargo.toml
+	cargo build --release -q -p arena-linker
+
+.PHONY: examples
+examples $(OBJS): $(LINKER)
+	PATH="$(CURDIR)/target/release:$$PATH" cargo bpf --examples
+
+$(RUNNER): tools/runner/runner.c
+	@mkdir -p target
+	$(CC) -O2 -o $@ $< -I$(LIBBPF_INCLUDE) $(LIBBPF_LIBS)
 
 test: all
-	@for o in $(LIBARENA_RS_PROG_OBJS); do $(SUDO) $(RUNNER) $(RUNNER_ARGS) $$o || exit 1; done
+	@for o in $(OBJS); do $(SUDO) $(RUNNER) $(RUNNER_ARGS) $$o || exit 1; done
 
 test-vng: all
 	@test -n "$(KERNEL_BZIMAGE)" || { echo "set KERNEL_BZIMAGE=/path/to/bzImage"; exit 1; }
 	$(VNG) --run $(KERNEL_BZIMAGE) --cpus 2 --memory 2G --rw -- \
-		'cd $(CURDIR) && for o in $(LIBARENA_RS_PROG_OBJS); do $(RUNNER) $(RUNNER_ARGS) $$o || exit 1; done'
+		'cd $(CURDIR) && for o in $(OBJS); do $(RUNNER) $(RUNNER_ARGS) $$o || exit 1; done'
 
-check-toolchain: libarena-rs-check-toolchain
-clean: libarena-rs-clean
-distclean: libarena-rs-distclean
+clean:
+	cargo clean
 
-.PHONY: all test test-vng check-toolchain clean distclean
+.PHONY: all test test-vng clean

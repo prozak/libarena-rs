@@ -1,0 +1,19 @@
+# `RUSTC_BOOTSTRAP=1 cargo bpf --examples` builds every example as a BPF
+# object with the arena-linker (install it: `cargo install --path linker`, or
+# put target/release/arena-linker on PATH after
+# `cargo build --release -p arena-linker`). RUSTC_BOOTSTRAP=1 lets a stable
+# cargo accept the -Z flags; a nightly toolchain does not need it.
+# Every crate, core and alloc included, is built with panic=immediate-abort
+# (panic formatting cannot be lowered by the BPF backend) and as a single
+# codegen unit (rustc otherwise runs a ThinLTO round over a bin crate's
+# units that unrolls loops aggressively; a 16-way unrolled allocation loop
+# is verifier budget wasted).
+[alias]
+bpf = "build --release --target targets/bpfel-unknown-none-v4.json -Zbuild-std=core,alloc -Zjson-target-spec"
+
+[target.bpfel-unknown-none-v4]
+linker = "arena-linker"
+rustflags = ["-Zunstable-options", "-C", "panic=immediate-abort", "-C", "codegen-units=1", "--cfg", "no_fp_fmt_parse", "-A", "unexpected_cfgs"]
+
+[env]
+RUSTC_BOOTSTRAP = "1"
