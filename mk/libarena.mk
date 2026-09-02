@@ -41,6 +41,12 @@ VMLINUX_BTF    ?= /sys/kernel/btf/vmlinux
 LIBBPF_INCLUDE ?= $(shell pkg-config --variable=includedir libbpf 2>/dev/null || echo /usr/include)
 LIBBPF_LIBS    ?= $(shell pkg-config --libs libbpf 2>/dev/null || echo -lbpf -lelf -lz)
 
+ifeq ($(filter clean distclean libarena-rs-clean libarena-rs-distclean,$(MAKECMDGOALS)),)
+ifeq ($(shell command -v $(RUSTC) 2>/dev/null),)
+$(error rustc not found (RUSTC=$(RUSTC)); if running under sudo, build as your user: `make test` only elevates the runner)
+endif
+endif
+
 # ---- layout ----
 LIBARENA_RS_BLD  ?= $(CURDIR)/bld
 BPF_PROGS_DIR    ?= progs

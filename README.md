@@ -30,7 +30,7 @@ git clone --recursive https://github.com/prozak/libarena-rs
 cd libarena-rs
 make check-toolchain        # tells you what is missing and how to fix it
 make                        # examples/progs/*.rs -> bld/*.bpf.o + bld/arena-runner
-sudo make test              # on a kernel >= 6.17 with BTF
+make test                   # on a kernel >= 6.17 with BTF (sudo only for the runner)
 make test-vng KERNEL_BZIMAGE=/path/to/bzImage   # or inside a virtme-ng guest
 ```
 

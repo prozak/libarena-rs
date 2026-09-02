@@ -2,7 +2,8 @@
 # Builds the example programs under examples/progs and the runner.
 #
 #   make                  build examples/progs/*.rs -> bld/*.bpf.o
-#   make test             run every object on this kernel (needs root; kernel >= 6.17)
+#   make test             run every object on this kernel (builds as you, runs the
+#                         runner via sudo; kernel >= 6.17)
 #   make test-vng KERNEL_BZIMAGE=/path/to/bzImage   run inside a virtme-ng guest
 #
 # Toolchain inputs: see mk/libarena.mk (LLVM_PREFIX, RUSTC, VMLINUX_H, ...).
@@ -13,13 +14,14 @@ include mk/libarena.mk
 
 RUNNER      := $(LIBARENA_RS_BLD)/arena-runner
 RUNNER_ARGS ?=
+SUDO        ?= $(shell test $$(id -u) -eq 0 || echo sudo)
 VNG         ?= vng
 KERNEL_BZIMAGE ?=
 
 all: $(LIBARENA_RS_PROG_OBJS) $(RUNNER)
 
 test: all
-	@for o in $(LIBARENA_RS_PROG_OBJS); do $(RUNNER) $(RUNNER_ARGS) $$o || exit 1; done
+	@for o in $(LIBARENA_RS_PROG_OBJS); do $(SUDO) $(RUNNER) $(RUNNER_ARGS) $$o || exit 1; done
 
 test-vng: all
 	@test -n "$(KERNEL_BZIMAGE)" || { echo "set KERNEL_BZIMAGE=/path/to/bzImage"; exit 1; }
