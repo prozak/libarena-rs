@@ -42,7 +42,7 @@ make test-vng KERNEL_BZIMAGE=/path/to/bzImage   # or inside a virtme-ng guest
 | rustc | 1.96 or newer, stable is fine (`RUSTC_BOOTSTRAP=1` is exported by the fragment), with the `rust-src` component (`rustup component add rust-src`). | `RUSTC`, `RUST_SRC` |
 | vmlinux.h | Generated from the running kernel by default (`bpftool btf dump file /sys/kernel/btf/vmlinux format c`); or point at an existing one. Kfuncs libarena needs but your kernel's BTF does not declare are supplied by `csrc/kfunc_compat.h`. | `VMLINUX_H`, `VMLINUX_BTF`, `BPFTOOL` |
 | libbpf | Headers (`bpf/bpf_helpers.h`) for the C side; the library for the runner. `libbpf-dev` or a libbpf checkout. | `LIBBPF_INCLUDE`, `LIBBPF_LIBS` |
-| Kernel (to run) | >= 6.17: arena maps, `addr_space_cast`, `bpf_arena_reserve_pages`, `bpf_throw`, `may_goto`. Tested against bpf-next 520d7d79. Runner needs root and `/proc/config.gz` or `/boot/config-*` (else pass `RUNNER_ARGS="-k CONFIG_NR_CPUS=8"`). | `KERNEL_BZIMAGE`, `VNG`, `RUNNER_ARGS` |
+| Kernel (to run) | >= 6.17: arena maps, `addr_space_cast`, `bpf_arena_reserve_pages`, `bpf_throw`, `may_goto`. Tested against bpf-next 520d7d79 and a stock 6.18. Objects are kernel-specific: build against the target kernel's vmlinux.h, and set `BPF_STREAM_KFUNC=impl` for 6.17/6.18 when not building against the running kernel (their stream printk kfunc has a different name and arity). Runner needs root and `/proc/config.gz` or `/boot/config-*` (else pass `RUNNER_ARGS="-k CONFIG_NR_CPUS=8"`). | `KERNEL_BZIMAGE`, `VNG`, `RUNNER_ARGS`, `BPF_STREAM_KFUNC` |
 
 Machine-local values go in `local.mk` (gitignored, see `local.mk.example`).
 
@@ -127,6 +127,7 @@ On non-BPF targets the crate builds for `cargo check`, `cargo doc` and
 | `RUST_EXTERNS` | | extra `--extern name=path` for programs |
 | `PRE_INTERNALIZE_PASSES` | `scripts/lower_mem.py` | IR scripts (`script in.ll out.ll`) run before internalize |
 | `POST_O2_PASSES` | | IR scripts run after the O2 stage |
+| `BPF_STREAM_KFUNC` | auto / `plain` | `impl` for 6.17/6.18 kernels, `plain` for newer (see prerequisites) |
 | `KSYM_BTF_FILES` | | optional vmlinux [+ module .ko] for kernel-mirrored kfunc prototypes (not needed for `bpf_throw`) |
 | `RUSTBPF` | `vendor/rust-bpf` | rust-bpf checkout (`add_ksyms.py`, target JSON, `multi3.ll`) |
 

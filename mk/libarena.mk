@@ -85,11 +85,22 @@ B    := $(LIBARENA_RS_BLD)
 DEPS := $(LIBARENA_RS_DEPS)
 S    := $(LIBARENA_RS)/scripts
 
+# Stream printk kfunc ABI of the target kernel: `impl` for 6.17/6.18
+# (bpf_stream_vprintk_impl, extra aux__prog arg), `plain` for later kernels
+# (bpf_stream_vprintk). Auto-detected from the running kernel when building
+# against its BTF (the default VMLINUX_H); otherwise plain unless set.
+ifeq ($(VMLINUX_H),$(B)/vmlinux.h)
+BPF_STREAM_KFUNC ?= $(shell grep -q ' bpf_stream_vprintk_impl$$' /proc/kallsyms 2>/dev/null && echo impl || echo plain)
+else
+BPF_STREAM_KFUNC ?= plain
+endif
+
 RUSTC_COMMON := --target $(BPF_TARGET_JSON) -C opt-level=3 -C debuginfo=2 \
                 -C panic=immediate-abort -Z unstable-options
 BPF_CFLAGS   := --target=bpfel -mcpu=$(BPF_CPU) -O2 -g -DENABLE_ATOMICS_TESTS $(BPF_ARCH_DEFINE) \
                 -Wno-incompatible-pointer-types-discards-qualifiers \
                 -Wno-missing-declarations -Wno-macro-redefined \
+                $(if $(filter impl,$(BPF_STREAM_KFUNC)),-DLIBARENA_RS_STREAM_IMPL) \
                 -include $(LIBARENA_RS)/csrc/kfunc_compat.h \
                 -I$(LIBARENA_SRC)/include -I$(dir $(VMLINUX_H)) -I$(LIBBPF_INCLUDE)
 _lrs_cfgs    := $(foreach f,$(LIBARENA_RS_FEATURES),--cfg 'feature="$(f)"')
@@ -111,7 +122,7 @@ libarena-rs-check-toolchain:
 	@test -f $(LIBARENA_SRC)/src/common.bpf.c || { echo "libarena submodule missing: git submodule update --init"; exit 1; }
 	@test -f $(RUSTBPF)/add_ksyms.py || { echo "rust-bpf submodule missing: git submodule update --init"; exit 1; }
 	@test -f $(LIBBPF_INCLUDE)/bpf/bpf_helpers.h || { echo "bpf/bpf_helpers.h not under LIBBPF_INCLUDE=$(LIBBPF_INCLUDE)"; exit 1; }
-	@echo "toolchain OK: $(LLC) / $(RUSTC) $$($(RUSTC) -V) / deps in $(DEPS)"
+	@echo "toolchain OK: $(LLC) / $(RUSTC) $$($(RUSTC) -V) / deps in $(DEPS) / stream kfunc ABI: $(BPF_STREAM_KFUNC)"
 
 # ---- vmlinux.h ----
 ifeq ($(VMLINUX_H),$(B)/vmlinux.h)
