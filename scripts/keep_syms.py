@@ -13,7 +13,15 @@ Kept global:
     budget);
   - anything passed via --extra.
 
+--drop-void-globals removes externally visible functions returning void
+from the list: kernels before the void-return relaxation reject global
+subprograms that do not return a scalar ("Global function X() doesn't
+return scalar"), so they are internalized and verified as static
+subprograms per call site instead. Keep them outlined by also passing
+the nm-list to force_inline.py.
+
 Usage: keep_syms.py linked.ll [--nm-list FILE] [--extra SYM ...]
+                              [--drop-void-globals]
 """
 import argparse
 import re
@@ -22,6 +30,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('ll')
 ap.add_argument('--nm-list')
 ap.add_argument('--extra', nargs='*', default=[])
+ap.add_argument('--drop-void-globals', action='store_true')
 args = ap.parse_args()
 
 text = open(args.ll).read()
@@ -38,5 +47,10 @@ for m in re.finditer(r'^@([A-Za-z0-9_.$]+) = [^\n]*?\bsection "([^"]+)"',
 
 if args.nm_list:
     keep.update(open(args.nm_list).read().split())
+
+if args.drop_void_globals:
+    for m in re.finditer(r'^define\s(?!internal\b|private\b)[^\n]*?\bvoid @([A-Za-z0-9_.$]+)\(',
+                         text, re.MULTILINE):
+        keep.discard(m.group(1))
 
 print('\n'.join(sorted(keep)))

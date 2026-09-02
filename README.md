@@ -124,6 +124,7 @@ On non-BPF targets the crate builds for `cargo check`, `cargo doc` and
 | `BPF_CPU` | `v4` | `-mcpu` for clang and llc |
 | `BPF_ARCH_DEFINE` | from `uname -m` | `-D__TARGET_ARCH_x86` / `arm64` (libarena's `map_extra`) |
 | `TRAP_COOKIE` | `0xC0DED` | return value of a panicked / OOM program |
+| `VOID_GLOBALS` | `internalize` | void-returning global functions become static subprograms (`keep` leaves them global; older kernels reject that) |
 | `TRAP_MODE` | auto / `throw` | `throw` = `bpf_throw` kfunc, `ret` = return the cookie from the entry program |
 | `KEEP_EXTRA` | | extra symbols kept global (not inlined, not internalized) |
 | `EXTRA_BPF_BCS` | | your own clang-built `.bc` files to link in |

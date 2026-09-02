@@ -106,6 +106,13 @@ else
 TRAP_MODE ?= throw
 endif
 
+# Externally visible void-returning functions (libarena's arena_free, the
+# glue's arena_free_u64): `internalize` (default) makes them static
+# subprograms, still outlined, which every kernel accepts; `keep` leaves
+# them global, which kernels before the void-return relaxation reject
+# ("Global function X() doesn't return scalar").
+VOID_GLOBALS ?= internalize
+
 RUSTC_COMMON := --target $(BPF_TARGET_JSON) -C opt-level=3 -C debuginfo=2 \
                 -C panic=immediate-abort -Z unstable-options
 BPF_CFLAGS   := --target=bpfel -mcpu=$(BPF_CPU) -O2 -g -DENABLE_ATOMICS_TESTS $(BPF_ARCH_DEFINE) \
@@ -133,7 +140,7 @@ libarena-rs-check-toolchain:
 	@test -f $(LIBARENA_SRC)/src/common.bpf.c || { echo "libarena submodule missing: git submodule update --init"; exit 1; }
 	@test -f $(RUSTBPF)/add_ksyms.py || { echo "rust-bpf submodule missing: git submodule update --init"; exit 1; }
 	@test -f $(LIBBPF_INCLUDE)/bpf/bpf_helpers.h || { echo "bpf/bpf_helpers.h not under LIBBPF_INCLUDE=$(LIBBPF_INCLUDE)"; exit 1; }
-	@echo "toolchain OK: $(LLC) / $(RUSTC) $$($(RUSTC) -V) / deps in $(DEPS) / stream kfunc ABI: $(BPF_STREAM_KFUNC) / trap mode: $(TRAP_MODE)"
+	@echo "toolchain OK: $(LLC) / $(RUSTC) $$($(RUSTC) -V) / deps in $(DEPS) / stream kfunc ABI: $(BPF_STREAM_KFUNC) / trap mode: $(TRAP_MODE) / void globals: $(VOID_GLOBALS)"
 
 # ---- vmlinux.h ----
 ifeq ($(VMLINUX_H),$(B)/vmlinux.h)
@@ -220,10 +227,14 @@ $(B)/%-linked.bc: $(B)/%.bc $(ARENA_BCS) $(EXTRA_BPF_BCS) $(DEPS)/extracted $(B)
 	done
 	@$(LLVM_LINK) $@ $(B)/multi3-inline.bc -o $@.tmp && mv $@.tmp $@
 
+# %.keep: symbols left global (internalize). %.noinline: functions left
+# outlined (force_inline) = keep list + every libarena function.
 $(B)/%.keep: $(B)/%-linked.bc $(B)/arena_syms.txt
 	$(LLVM_DIS) $< -o $@.ll
-	python3 $(S)/keep_syms.py $@.ll --nm-list $(B)/arena_syms.txt --extra $(KEEP_EXTRA) > $@
+	python3 $(S)/keep_syms.py $@.ll --nm-list $(B)/arena_syms.txt --extra $(KEEP_EXTRA) \
+		$(if $(filter internalize,$(VOID_GLOBALS)),--drop-void-globals) > $@
 	@rm -f $@.ll
+	@cat $@ $(B)/arena_syms.txt | sort -u > $(B)/$*.noinline
 
 # Stages: (0) pre-internalize IR passes, (1) internalize + globaldce,
 # (2) force-inline every non-kept function + O2, (3) post-O2 IR passes.
@@ -234,7 +245,7 @@ $(B)/%-opt.bc: $(B)/%-linked.bc $(B)/%.keep
 		--force-remove-attribute=cold \
 		-passes='forceattrs,internalize,globaldce' $@.stage0.ll -o $@.stage1
 	$(LLVM_DIS) $@.stage1 -o $@.stage1.ll
-	$(OPT) $$(python3 $(S)/force_inline.py $@.stage1.ll $@.stage2.ll $(B)/$*.keep) \
+	$(OPT) $$(python3 $(S)/force_inline.py $@.stage1.ll $@.stage2.ll $(B)/$*.noinline) \
 		-passes='forceattrs,always-inline,globaldce,default<O2>' $@.stage2.ll -o $@.stage3
 	@if [ -n "$(strip $(POST_O2_PASSES))" ]; then \
 		$(LLVM_DIS) $@.stage3 -o $@.stage3.ll && \
@@ -269,7 +280,7 @@ $(B)/arena-runner: $(LIBARENA_RS)/tools/runner/runner.c
 
 .PHONY: libarena-rs-clean libarena-rs-distclean
 libarena-rs-clean:
-	rm -rf $(B)/*.bc $(B)/*.keep $(B)/*.bpf.o $(B)/*.tmp $(B)/*.ll $(B)/*.stage* \
+	rm -rf $(B)/*.bc $(B)/*.keep $(B)/*.noinline $(B)/*.bpf.o $(B)/*.tmp $(B)/*.ll $(B)/*.stage* \
 		$(B)/arena_syms.txt $(CRATE_RLIB) $(CRATE_CGU) $(B)/arena-runner
 libarena-rs-distclean:
 	rm -rf $(B)
