@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: LGPL-2.1 OR BSD-2-Clause
+"""Derive the internalize keep-list from the linked IR.
+
+Kept global:
+  - every function defined with a `section` attribute: that is every
+    #[link_section]/SEC() entry program, Rust or C;
+  - every global variable with a section other than llvm.metadata: the
+    arena map (.maps), the license string, user .data/.rodata objects;
+  - the symbols listed in --nm-list (libarena's functions, global AND
+    static: they must stay outlined so the buddy allocator's loops are not
+    inlined into every entry program, which blows the verifier's jump
+    budget);
+  - anything passed via --extra.
+
+Usage: keep_syms.py linked.ll [--nm-list FILE] [--extra SYM ...]
+"""
+import argparse
+import re
+
+ap = argparse.ArgumentParser()
+ap.add_argument('ll')
+ap.add_argument('--nm-list')
+ap.add_argument('--extra', nargs='*', default=[])
+args = ap.parse_args()
+
+text = open(args.ll).read()
+keep = set(args.extra)
+
+for m in re.finditer(r'^define\s[^\n]*?@([A-Za-z0-9_.$]+)\([^\n]*?\bsection "[^"]+"',
+                     text, re.MULTILINE):
+    keep.add(m.group(1))
+
+for m in re.finditer(r'^@([A-Za-z0-9_.$]+) = [^\n]*?\bsection "([^"]+)"',
+                     text, re.MULTILINE):
+    if m.group(2) != 'llvm.metadata':
+        keep.add(m.group(1))
+
+if args.nm_list:
+    keep.update(open(args.nm_list).read().split())
+
+print('\n'.join(sorted(keep)))

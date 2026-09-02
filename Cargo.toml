@@ -1,0 +1,36 @@
+[package]
+name = "libarena-rs"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.96"
+license = "LGPL-2.1-only OR BSD-2-Clause"
+description = "BPF-arena-backed GlobalAlloc over libarena's buddy allocator, for Rust compiled straight to BPF with upstream rustc/LLVM (no aya, no bpf-linker)"
+repository = "https://github.com/prozak/libarena-rs"
+readme = "README.md"
+keywords = ["bpf", "ebpf", "arena", "allocator", "no-std"]
+categories = ["no-std", "memory-management"]
+# v1 is git-distributed: the crate is useless without mk/, csrc/ and the
+# submodules, and vendor/rust-bpf carries no license yet (must be excluded
+# before any publish).
+publish = false
+exclude = ["vendor/rust-bpf"]
+
+[lib]
+name = "libarena_rs"
+crate-type = ["rlib"]
+
+[features]
+default = ["panic-handler", "alloc-error-handler"]
+# Declare `#[global_allocator] static GLOBAL: ArenaAlloc` in this crate instead
+# of in the program. Opt-in: with the shims defined outside the program crate,
+# rustc sees them only as `allockind` declarations and legally elides
+# allocations whose results it can forward (a `Box::new(x)` read straight
+# back disappears), and the resulting code differs from the program-owned
+# configuration the test corpus verifies.
+global-allocator = []
+# Provide `#[panic_handler]` (BPF targets only).
+panic-handler = []
+# Provide `#[alloc_error_handler]` (BPF targets only).
+alloc-error-handler = []
+
+[dependencies]

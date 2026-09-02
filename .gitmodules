@@ -1,0 +1,6 @@
+[submodule "vendor/libarena"]
+	path = vendor/libarena
+	url = https://github.com/libbpf/libarena
+[submodule "vendor/rust-bpf"]
+	path = vendor/rust-bpf
+	url = https://github.com/prozak/rust-bpf.git
