@@ -8,7 +8,7 @@ Rust compiled **straight to BPF by upstream rustc/LLVM** (the
 bpf-linker), built with plain `cargo`.
 
 ```
-$ cargo install --path linker            # once: the arena-linker rustc calls
+$ cargo install arena-linker             # once: the linker rustc calls (or --path linker)
 $ RUSTC_BOOTSTRAP=1 cargo bpf --examples # examples/*.rs -> target/bpfel-unknown-none-v4/release/examples/*
 $ make test-vng KERNEL_BZIMAGE=/path/to/bzImage
 OK   test_rs_box
