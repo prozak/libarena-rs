@@ -87,9 +87,11 @@ must not define those. Panic and allocation-error handlers come from the
 crate (features `panic-handler`, `alloc-error-handler`, default on); disable
 them in `LIBARENA_RS_FEATURES` if another crate owns them.
 
-Runtime failures (a panic, an allocation failure) exit the program through
-`bpf_throw` with cookie `TRAP_COOKIE` (`0xC0DED`), so a test returns that
-value instead of hanging or being rejected.
+Runtime failures (a panic, an allocation failure) exit the program with
+cookie `TRAP_COOKIE` (`0xC0DED`) as the return value: through the
+`bpf_throw` kfunc (`TRAP_MODE=throw`, needs JIT exception support, on x86
+`CONFIG_UNWINDER_ORC`), or as a plain return from the entry program
+(`TRAP_MODE=ret`, e.g. WSL2 kernels; auto-selected for the running kernel).
 
 ### Crate API
 
@@ -121,7 +123,8 @@ On non-BPF targets the crate builds for `cargo check`, `cargo doc` and
 | `LIBARENA_RS_FEATURES` | `panic-handler alloc-error-handler` | crate features (`--cfg feature=...`) |
 | `BPF_CPU` | `v4` | `-mcpu` for clang and llc |
 | `BPF_ARCH_DEFINE` | from `uname -m` | `-D__TARGET_ARCH_x86` / `arm64` (libarena's `map_extra`) |
-| `TRAP_COOKIE` | `0xC0DED` | `bpf_throw` cookie for panics / OOM |
+| `TRAP_COOKIE` | `0xC0DED` | return value of a panicked / OOM program |
+| `TRAP_MODE` | auto / `throw` | `throw` = `bpf_throw` kfunc, `ret` = return the cookie from the entry program |
 | `KEEP_EXTRA` | | extra symbols kept global (not inlined, not internalized) |
 | `EXTRA_BPF_BCS` | | your own clang-built `.bc` files to link in |
 | `RUST_EXTERNS` | | extra `--extern name=path` for programs |

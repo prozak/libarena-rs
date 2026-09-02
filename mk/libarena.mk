@@ -95,6 +95,17 @@ else
 BPF_STREAM_KFUNC ?= plain
 endif
 
+# How a panic / allocation failure leaves the program: `throw` calls the
+# bpf_throw kfunc with TRAP_COOKIE (needs JIT exception support: x86
+# CONFIG_UNWINDER_ORC, which WSL2 kernels lack); `ret` returns TRAP_COOKIE
+# from the entry program instead (scripts/trap_to_ret.py). Auto-detected for
+# the running kernel from /proc/config.gz.
+ifeq ($(VMLINUX_H),$(B)/vmlinux.h)
+TRAP_MODE ?= $(shell if [ -r /proc/config.gz ] && ! zcat /proc/config.gz 2>/dev/null | grep -q '^CONFIG_UNWINDER_ORC=y'; then echo ret; else echo throw; fi)
+else
+TRAP_MODE ?= throw
+endif
+
 RUSTC_COMMON := --target $(BPF_TARGET_JSON) -C opt-level=3 -C debuginfo=2 \
                 -C panic=immediate-abort -Z unstable-options
 BPF_CFLAGS   := --target=bpfel -mcpu=$(BPF_CPU) -O2 -g -DENABLE_ATOMICS_TESTS $(BPF_ARCH_DEFINE) \
@@ -122,7 +133,7 @@ libarena-rs-check-toolchain:
 	@test -f $(LIBARENA_SRC)/src/common.bpf.c || { echo "libarena submodule missing: git submodule update --init"; exit 1; }
 	@test -f $(RUSTBPF)/add_ksyms.py || { echo "rust-bpf submodule missing: git submodule update --init"; exit 1; }
 	@test -f $(LIBBPF_INCLUDE)/bpf/bpf_helpers.h || { echo "bpf/bpf_helpers.h not under LIBBPF_INCLUDE=$(LIBBPF_INCLUDE)"; exit 1; }
-	@echo "toolchain OK: $(LLC) / $(RUSTC) $$($(RUSTC) -V) / deps in $(DEPS) / stream kfunc ABI: $(BPF_STREAM_KFUNC)"
+	@echo "toolchain OK: $(LLC) / $(RUSTC) $$($(RUSTC) -V) / deps in $(DEPS) / stream kfunc ABI: $(BPF_STREAM_KFUNC) / trap mode: $(TRAP_MODE)"
 
 # ---- vmlinux.h ----
 ifeq ($(VMLINUX_H),$(B)/vmlinux.h)
@@ -235,7 +246,9 @@ $(B)/%-opt.bc: $(B)/%-linked.bc $(B)/%.keep
 # ---- trap -> bpf_throw, .ksyms tagging, invoke/unreachable cleanup ----
 $(B)/%-ksyms.bc: $(B)/%-opt.bc
 	$(LLVM_DIS) $< -o $@.ll
-	KSYM_BTF_FILES="$(KSYM_BTF_FILES)" BPFTOOL="$(BPFTOOL)" TRAP_TO_BPF_THROW=$(TRAP_COOKIE) \
+	$(if $(filter ret,$(TRAP_MODE)),python3 $(S)/trap_to_ret.py $@.ll $@.ll $(TRAP_COOKIE))
+	KSYM_BTF_FILES="$(KSYM_BTF_FILES)" BPFTOOL="$(BPFTOOL)" \
+		$(if $(filter throw,$(TRAP_MODE)),TRAP_TO_BPF_THROW=$(TRAP_COOKIE)) \
 		python3 $(RUSTBPF)/add_ksyms.py $@.ll $@.ll
 	$(LLVM_AS) $@.ll -o $@
 	@rm -f $@.ll
