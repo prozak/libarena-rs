@@ -39,7 +39,7 @@ Three parts:
 | Input | Requirement | Environment variable |
 |---|---|---|
 | LLVM | Version >= the LLVM bundled with your rustc (`rustc -vV`), with the BPF backend; any [official release tarball](https://github.com/llvm/llvm-project/releases) works. Tested with 22.1.8. | `LLVM_PREFIX` (else `llvm-config`, then PATH) |
-| Rust | 1.96 or newer, stable is fine with `RUSTC_BOOTSTRAP=1` (for `-Zbuild-std`), plus the `rust-src` component. Nightly needs no variable. | |
+| Rust | 1.91 or newer for host and build-support use. Direct Rust-to-BPF builds additionally need `rust-src` and nightly, or stable with `RUSTC_BOOTSTRAP=1`, for `-Zbuild-std` and the custom target. | |
 | python3 | The IR passes are Python scripts embedded in the linker. | `PYTHON` |
 | vmlinux.h | For the kernel the object will run on. Default: generated from `/sys/kernel/btf/vmlinux` with `bpftool`. | `LIBARENA_VMLINUX_H`, `VMLINUX_BTF`, `BPFTOOL` |
 | libbpf | Headers (`bpf/bpf_helpers.h`) for the C side; the library for the runner (`libbpf-dev`). | `LIBBPF_INCLUDE` |
@@ -54,7 +54,7 @@ built without kfunc decl tags) are supplied by `csrc/kfunc_compat.h`.
 
 ```toml
 [dependencies]
-libarena-rs = "0.2"
+libarena-rs = "0.3"
 
 [profile.release]
 opt-level = 3
@@ -66,7 +66,7 @@ By default, the crate builds the upstream `main` snapshot. Enable the additive
 
 ```toml
 [dependencies]
-libarena-rs = { version = "0.2", features = ["compat"] }
+libarena-rs = { version = "0.3", features = ["compat"] }
 ```
 
 Cargo features are additive, so enabling `compat` anywhere in an application's
@@ -137,7 +137,7 @@ enable the `build-support` feature:
 
 ```toml
 [build-dependencies]
-libarena-rs = { version = "0.2", features = ["build-support"] }
+libarena-rs = { version = "0.3", features = ["build-support"] }
 ```
 
 The helper extracts the selected snapshot's headers and BPF C sources into the
