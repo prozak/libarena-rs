@@ -61,6 +61,24 @@ opt-level = 3
 debug = 2          # BTF comes from debug info; keep it
 ```
 
+By default, the crate builds the upstream `main` snapshot. Enable the additive
+`compat` feature to select the compatibility snapshot for older verifiers:
+
+```toml
+[dependencies]
+libarena-rs = { version = "0.2", features = ["compat"] }
+```
+
+Cargo features are additive, so enabling `compat` anywhere in an application's
+dependency graph selects the compatibility snapshot for every use of the crate.
+Each crate release pins both snapshots to exact libarena commits even though
+the submodules record their source branches for maintainers.
+
+| Selection | Feature | Source branch | Pinned commit |
+|---|---|---|---|
+| Default | none | `main` | `ccd85ac828be5bc299a1260c6e26fc3b387d796d` |
+| Compatibility | `compat` | `compat-ccd85ac8` | `1f5202a6b2158b9ced4b2364aadbeb707e2f74e2` |
+
 Copy `targets/bpfel-unknown-none-v4.json` next to it, and `.cargo/config.toml`:
 
 ```toml
@@ -220,12 +238,13 @@ rustc then calls `arena-linker`, which:
     examples/           collections_smoke.rs (the verified corpus)
     tools/runner/       arena-runner: loads an object, runs arena_buddy_reset,
                         bpf_prog_test_run()s every test_* program
-    vendor/libarena     libbpf/libarena, pinned
+    vendor/libarena           upstream-main libarena snapshot, pinned
+    vendor/libarena-compat    compatibility-branch snapshot, pinned
 
 ## License
 
 `LGPL-2.1 OR BSD-2-Clause`, the same terms as libarena and libbpf, for
-everything in this repository outside `vendor/`; `vendor/libarena` carries
-the same license. The BPF objects you build declare `GPL` to the kernel
-(libarena's `_license`; the arena kfuncs are GPL-only), which is a statement
-about the loaded program, independent of this repository's license.
+everything in this repository outside `vendor/`; both vendored libarena
+snapshots carry the same license. The BPF objects you build declare `GPL` to
+the kernel (libarena's `_license`; the arena kfuncs are GPL-only), which is a
+statement about the loaded program, independent of this repository's license.

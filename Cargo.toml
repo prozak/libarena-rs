@@ -10,7 +10,20 @@ readme = "README.md"
 keywords = ["bpf", "ebpf", "arena", "allocator", "no-std"]
 categories = ["no-std", "memory-management"]
 build = "build.rs"
-include = ["src/**", "csrc/**", "vendor/libarena/LICENSE*", "vendor/libarena/libarena/src/*.c", "vendor/libarena/libarena/include/**", "targets/**", "build.rs", "README.md", "LICENSE*"]
+include = [
+    "src/**",
+    "csrc/**",
+    "vendor/libarena/LICENSE*",
+    "vendor/libarena/libarena/src/*.c",
+    "vendor/libarena/libarena/include/**",
+    "vendor/libarena-compat/LICENSE*",
+    "vendor/libarena-compat/libarena/src/*.c",
+    "vendor/libarena-compat/libarena/include/**",
+    "targets/**",
+    "build.rs",
+    "README.md",
+    "LICENSE*",
+]
 
 [lib]
 name = "libarena_rs"
@@ -18,6 +31,8 @@ crate-type = ["rlib"]
 
 [features]
 default = ["panic-handler", "alloc-error-handler"]
+# Select the compatibility snapshot instead of upstream libarena.
+compat = []
 # Declare `#[global_allocator] static GLOBAL: ArenaAlloc` in this crate instead
 # of in the program. Opt-in: with the shims defined outside the program crate,
 # rustc sees them only as `allockind` declarations and legally elides

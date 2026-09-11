@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1 OR BSD-2-Clause
-//! Compiles libarena (vendor/libarena) and csrc/arena_glue.bpf.c to BPF
-//! bitcode with clang and archives them as libarena_c.a in OUT_DIR, which
-//! arena-linker finds through the `-L` search path this script exports.
+//! Compiles the feature-selected libarena snapshot and csrc/arena_glue.bpf.c
+//! to BPF bitcode with clang and archives them as libarena_c.a in OUT_DIR,
+//! which arena-linker finds through the `-L` search path this script exports.
 //! Only runs when the target is BPF; host builds (check/doc/test) skip it.
 //!
 //! Environment (all optional):
@@ -30,19 +30,32 @@ fn run(c: &mut Command) {
     }
 }
 
+fn libarena_snapshot(root: &Path) -> (&'static str, PathBuf) {
+    if env::var_os("CARGO_FEATURE_COMPAT").is_some() {
+        ("-compat", root.join("vendor/libarena-compat/libarena"))
+    } else {
+        ("", root.join("vendor/libarena/libarena"))
+    }
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=csrc");
     println!("cargo:rerun-if-changed=vendor/libarena/libarena/src");
     println!("cargo:rerun-if-changed=vendor/libarena/libarena/include");
+    println!("cargo:rerun-if-changed=vendor/libarena-compat/libarena/src");
+    println!("cargo:rerun-if-changed=vendor/libarena-compat/libarena/include");
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let (suffix, la) = libarena_snapshot(&root);
     if env::var("CARGO_CFG_TARGET_ARCH").as_deref() != Ok("bpf") {
         return;
     }
     let out = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let la = root.join("vendor/libarena/libarena");
     if !la.join("src/common.bpf.c").exists() {
-        panic!("libarena sources missing at {}: git submodule update --init", la.display());
+        panic!(
+            "libarena{suffix} sources missing at {}: git submodule update --init",
+            la.display()
+        );
     }
     let llvm_bin = envv("LLVM_PREFIX").map(|p| PathBuf::from(p).join("bin"));
     let tool = |name: &str| -> Command {
@@ -130,5 +143,8 @@ fn main() {
     ar.arg("rcs").arg(&archive).args(&bcs);
     run(&mut ar);
     println!("cargo:rustc-link-search=native={}", out.display());
-    println!("cargo:warning=libarena-rs: C side built with vmlinux.h={} stream-kfunc={stream}", vmlinux_h.display());
+    println!(
+        "cargo:warning=libarena-rs: C side built with libarena{suffix} vmlinux.h={} stream-kfunc={stream}",
+        vmlinux_h.display()
+    );
 }
