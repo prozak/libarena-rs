@@ -2,3 +2,7 @@
 	path = vendor/libarena
 	url = https://github.com/libbpf/libarena
 	branch = main
+[submodule "vendor/libarena-compat"]
+	path = vendor/libarena-compat
+	url = https://github.com/libbpf/libarena
+	branch = compat-ccd85ac8
