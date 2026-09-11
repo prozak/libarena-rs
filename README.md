@@ -130,6 +130,35 @@ backend); `codegen-units=1` stops rustc's per-crate ThinLTO round from
 unrolling allocation loops into verifier budget; `no_fp_fmt_parse` drops
 float formatting from core.
 
+### Using the packaged C sources
+
+Host build scripts that compile libarena as part of a larger BPF object can
+enable the `build-support` feature:
+
+```toml
+[build-dependencies]
+libarena-rs = { version = "0.2", features = ["build-support"] }
+```
+
+The helper extracts the selected snapshot's headers and BPF C sources into the
+caller's `OUT_DIR`. This keeps consumers independent of the crate's source
+location in the Cargo registry or a local checkout.
+
+```rust
+use std::env;
+
+fn main() -> std::io::Result<()> {
+    let assets = libarena_rs::build::extract(env::var_os("OUT_DIR").unwrap())?;
+
+    let include_dir = assets.include_dir();
+    let buddy_source = assets.source("buddy.bpf.c");
+    let cflags = libarena_rs::build::CFLAGS;
+
+    // Pass include_dir, buddy_source, and cflags to the BPF C compiler.
+    Ok(())
+}
+```
+
 ### Knobs (environment, read by build.rs and the linker)
 
 | Variable | Default | Meaning |

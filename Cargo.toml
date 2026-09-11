@@ -31,6 +31,7 @@ crate-type = ["rlib"]
 
 [features]
 default = ["panic-handler", "alloc-error-handler"]
+build-support = ["dep:tar"]
 # Select the compatibility snapshot instead of upstream libarena.
 compat = []
 # Declare `#[global_allocator] static GLOBAL: ArenaAlloc` in this crate instead
@@ -46,6 +47,7 @@ panic-handler = []
 alloc-error-handler = []
 
 [dependencies]
+tar = { version = "0.4", optional = true }
 
 [build-dependencies]
 tar = "0.4"
