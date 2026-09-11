@@ -47,6 +47,9 @@ alloc-error-handler = []
 
 [dependencies]
 
+[build-dependencies]
+tar = "0.4"
+
 [workspace]
 members = ["linker"]
 
