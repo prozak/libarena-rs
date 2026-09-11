@@ -1,3 +1,4 @@
 [submodule "vendor/libarena"]
 	path = vendor/libarena
 	url = https://github.com/libbpf/libarena
+	branch = main
