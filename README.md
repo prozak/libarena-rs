@@ -39,7 +39,7 @@ Three parts:
 | Input | Requirement | Environment variable |
 |---|---|---|
 | LLVM | Version >= the LLVM bundled with your rustc (`rustc -vV`), with the BPF backend; any [official release tarball](https://github.com/llvm/llvm-project/releases) works. Tested with 22.1.8. | `LLVM_PREFIX` (else `llvm-config`, then PATH) |
-| Rust | 1.96 or newer, stable is fine with `RUSTC_BOOTSTRAP=1` (for `-Zbuild-std`), plus the `rust-src` component. Nightly needs no variable. | |
+| Rust | 1.91 or newer for host and build-support use. Direct Rust-to-BPF builds additionally need `rust-src` and nightly, or stable with `RUSTC_BOOTSTRAP=1`, for `-Zbuild-std` and the custom target. | |
 | python3 | The IR passes are Python scripts embedded in the linker. | `PYTHON` |
 | vmlinux.h | For the kernel the object will run on. Default: generated from `/sys/kernel/btf/vmlinux` with `bpftool`. | `LIBARENA_VMLINUX_H`, `VMLINUX_BTF`, `BPFTOOL` |
 | libbpf | Headers (`bpf/bpf_helpers.h`) for the C side; the library for the runner (`libbpf-dev`). | `LIBBPF_INCLUDE` |
@@ -54,12 +54,30 @@ built without kfunc decl tags) are supplied by `csrc/kfunc_compat.h`.
 
 ```toml
 [dependencies]
-libarena-rs = "0.2"
+libarena-rs = "0.3"
 
 [profile.release]
 opt-level = 3
 debug = 2          # BTF comes from debug info; keep it
 ```
+
+By default, the crate builds the upstream `main` snapshot. Enable the additive
+`compat` feature to select the compatibility snapshot for older verifiers:
+
+```toml
+[dependencies]
+libarena-rs = { version = "0.3", features = ["compat"] }
+```
+
+Cargo features are additive, so enabling `compat` anywhere in an application's
+dependency graph selects the compatibility snapshot for every use of the crate.
+Each crate release pins both snapshots to exact libarena commits even though
+the submodules record their source branches for maintainers.
+
+| Selection | Feature | Source branch | Pinned commit |
+|---|---|---|---|
+| Default | none | `main` | `ccd85ac828be5bc299a1260c6e26fc3b387d796d` |
+| Compatibility | `compat` | `compat-ccd85ac8` | `1f5202a6b2158b9ced4b2364aadbeb707e2f74e2` |
 
 Copy `targets/bpfel-unknown-none-v4.json` next to it, and `.cargo/config.toml`:
 
@@ -111,6 +129,35 @@ Why the flags: every crate including core and alloc must be built with
 backend); `codegen-units=1` stops rustc's per-crate ThinLTO round from
 unrolling allocation loops into verifier budget; `no_fp_fmt_parse` drops
 float formatting from core.
+
+### Using the packaged C sources
+
+Host build scripts that compile libarena as part of a larger BPF object can
+enable the `build-support` feature:
+
+```toml
+[build-dependencies]
+libarena-rs = { version = "0.3", features = ["build-support"] }
+```
+
+The helper extracts the selected snapshot's headers and BPF C sources into the
+caller's `OUT_DIR`. This keeps consumers independent of the crate's source
+location in the Cargo registry or a local checkout.
+
+```rust
+use std::env;
+
+fn main() -> std::io::Result<()> {
+    let assets = libarena_rs::build::extract(env::var_os("OUT_DIR").unwrap())?;
+
+    let include_dir = assets.include_dir();
+    let buddy_source = assets.source("buddy.bpf.c");
+    let cflags = libarena_rs::build::CFLAGS;
+
+    // Pass include_dir, buddy_source, and cflags to the BPF C compiler.
+    Ok(())
+}
+```
 
 ### Knobs (environment, read by build.rs and the linker)
 
@@ -220,12 +267,13 @@ rustc then calls `arena-linker`, which:
     examples/           collections_smoke.rs (the verified corpus)
     tools/runner/       arena-runner: loads an object, runs arena_buddy_reset,
                         bpf_prog_test_run()s every test_* program
-    vendor/libarena     libbpf/libarena, pinned
+    vendor/libarena           upstream-main libarena snapshot, pinned
+    vendor/libarena-compat    compatibility-branch snapshot, pinned
 
 ## License
 
 `LGPL-2.1 OR BSD-2-Clause`, the same terms as libarena and libbpf, for
-everything in this repository outside `vendor/`; `vendor/libarena` carries
-the same license. The BPF objects you build declare `GPL` to the kernel
-(libarena's `_license`; the arena kfuncs are GPL-only), which is a statement
-about the loaded program, independent of this repository's license.
+everything in this repository outside `vendor/`; both vendored libarena
+snapshots carry the same license. The BPF objects you build declare `GPL` to
+the kernel (libarena's `_license`; the arena kfuncs are GPL-only), which is a
+statement about the loaded program, independent of this repository's license.

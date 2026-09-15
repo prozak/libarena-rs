@@ -44,6 +44,94 @@
 //! `cargo doc` and unit tests only: the casts are identities and the C
 //! symbols are hosted stand-ins.
 
+#[cfg(feature = "build-support")]
+extern crate std;
+
+/// Host-side support for consumers which compile libarena's BPF C sources.
+#[cfg(feature = "build-support")]
+pub mod build {
+    use std::fs;
+    use std::io;
+    use std::io::Cursor;
+    use std::path::{Path, PathBuf};
+
+    static BPF_ARCHIVE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/libarena-bpf.tar"));
+
+    /// Compiler flags required when compiling the packaged libarena sources.
+    pub const CFLAGS: &[&str] = &[
+        "-DENABLE_ATOMICS_TESTS",
+        "-Wno-macro-redefined",
+        "-Wno-missing-declarations",
+    ];
+
+    /// Materialized libarena headers and BPF C sources.
+    #[derive(Debug)]
+    pub struct BpfAssets {
+        root: PathBuf,
+    }
+
+    impl BpfAssets {
+        /// Root of the extracted libarena source tree.
+        pub fn root(&self) -> &Path {
+            &self.root
+        }
+
+        /// Directory containing libarena's public headers.
+        pub fn include_dir(&self) -> PathBuf {
+            self.root.join("include")
+        }
+
+        /// Directory containing libarena's BPF C sources.
+        pub fn source_dir(&self) -> PathBuf {
+            self.root.join("src")
+        }
+
+        /// Resolve a BPF C source relative to libarena's source directory.
+        pub fn source(&self, name: impl AsRef<Path>) -> PathBuf {
+            self.source_dir().join(name)
+        }
+    }
+
+    /// Extract the packaged libarena build inputs below `out_dir`.
+    pub fn extract(out_dir: impl AsRef<Path>) -> io::Result<BpfAssets> {
+        let root = out_dir.as_ref().join("libarena-rs");
+        match fs::remove_dir_all(&root) {
+            Ok(()) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e),
+        }
+        fs::create_dir_all(&root)?;
+        tar::Archive::new(Cursor::new(BPF_ARCHIVE)).unpack(&root)?;
+        Ok(BpfAssets { root })
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn extracts_headers_and_sources() {
+            let out = std::env::temp_dir().join(std::format!(
+                "libarena-rs-build-support-{}",
+                std::process::id()
+            ));
+            let _ = fs::remove_dir_all(&out);
+
+            let assets = extract(&out).unwrap();
+            assert!(assets.include_dir().join("libarena/buddy.h").is_file());
+            assert!(assets.source("buddy.bpf.c").is_file());
+            assert!(assets.source("rbtree.bpf.c").is_file());
+            assert_eq!(assets.root(), out.join("libarena-rs"));
+
+            fs::write(assets.root().join("stale"), []).unwrap();
+            let assets = extract(&out).unwrap();
+            assert!(!assets.root().join("stale").exists());
+
+            fs::remove_dir_all(out).unwrap();
+        }
+    }
+}
+
 mod arena_alloc;
 mod cast;
 #[cfg(target_arch = "bpf")]

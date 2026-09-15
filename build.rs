@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1 OR BSD-2-Clause
-//! Compiles libarena (vendor/libarena) and csrc/arena_glue.bpf.c to BPF
-//! bitcode with clang and archives them as libarena_c.a in OUT_DIR, which
-//! arena-linker finds through the `-L` search path this script exports.
-//! Only runs when the target is BPF; host builds (check/doc/test) skip it.
+//! Packages the feature-selected libarena headers and BPF C sources for host
+//! build-script consumers. When the target is BPF, it also compiles libarena
+//! and csrc/arena_glue.bpf.c to bitcode and archives them as libarena_c.a in
+//! OUT_DIR, which arena-linker finds through the `-L` search path exported
+//! below.
 //!
 //! Environment (all optional):
 //!   LLVM_PREFIX / CLANG      clang with the BPF backend (else `clang` on PATH)
@@ -15,8 +16,12 @@
 //!   BPF_ARCH_DEFINE          -D__TARGET_ARCH_x86 / arm64 (libarena's map_extra)
 //!   BPF_CPU                  v4
 use std::env;
+use std::fs::File;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+const BPF_ARCHIVE: &str = "libarena-bpf.tar";
 
 fn envv(n: &str) -> Option<String> {
     println!("cargo:rerun-if-env-changed={n}");
@@ -30,19 +35,44 @@ fn run(c: &mut Command) {
     }
 }
 
+fn archive_bpf_sources(libarena: &Path, out_dir: &Path) -> io::Result<()> {
+    let file = File::create(out_dir.join(BPF_ARCHIVE))?;
+    let mut archive = tar::Builder::new(file);
+
+    archive.append_dir_all("include", libarena.join("include"))?;
+    archive.append_dir_all("src", libarena.join("src"))?;
+    archive.finish()
+}
+
+fn libarena_snapshot(root: &Path) -> (&'static str, PathBuf) {
+    if env::var_os("CARGO_FEATURE_COMPAT").is_some() {
+        ("-compat", root.join("vendor/libarena-compat/libarena"))
+    } else {
+        ("", root.join("vendor/libarena/libarena"))
+    }
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=csrc");
     println!("cargo:rerun-if-changed=vendor/libarena/libarena/src");
     println!("cargo:rerun-if-changed=vendor/libarena/libarena/include");
+    println!("cargo:rerun-if-changed=vendor/libarena-compat/libarena/src");
+    println!("cargo:rerun-if-changed=vendor/libarena-compat/libarena/include");
+    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let (suffix, la) = libarena_snapshot(&root);
+    let out = PathBuf::from(env::var("OUT_DIR").unwrap());
+    if !la.join("src/common.bpf.c").exists() {
+        panic!(
+            "libarena{suffix} sources missing at {}: git submodule update --init",
+            la.display()
+        );
+    }
+    archive_bpf_sources(&la, &out).unwrap_or_else(|e| {
+        panic!("failed to archive libarena sources from {}: {e}", la.display())
+    });
     if env::var("CARGO_CFG_TARGET_ARCH").as_deref() != Ok("bpf") {
         return;
-    }
-    let out = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let la = root.join("vendor/libarena/libarena");
-    if !la.join("src/common.bpf.c").exists() {
-        panic!("libarena sources missing at {}: git submodule update --init", la.display());
     }
     let llvm_bin = envv("LLVM_PREFIX").map(|p| PathBuf::from(p).join("bin"));
     let tool = |name: &str| -> Command {
@@ -130,5 +160,8 @@ fn main() {
     ar.arg("rcs").arg(&archive).args(&bcs);
     run(&mut ar);
     println!("cargo:rustc-link-search=native={}", out.display());
-    println!("cargo:warning=libarena-rs: C side built with vmlinux.h={} stream-kfunc={stream}", vmlinux_h.display());
+    println!(
+        "cargo:warning=libarena-rs: C side built with libarena{suffix} vmlinux.h={} stream-kfunc={stream}",
+        vmlinux_h.display()
+    );
 }

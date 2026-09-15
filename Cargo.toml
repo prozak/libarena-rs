@@ -1,8 +1,8 @@
 [package]
 name = "libarena-rs"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-rust-version = "1.96"
+rust-version = "1.91"
 license = "LGPL-2.1-only OR BSD-2-Clause"
 description = "BPF-arena-backed GlobalAlloc over libarena's buddy allocator, for Rust compiled straight to BPF with upstream rustc/LLVM (no aya, no bpf-linker)"
 repository = "https://github.com/prozak/libarena-rs"
@@ -10,7 +10,20 @@ readme = "README.md"
 keywords = ["bpf", "ebpf", "arena", "allocator", "no-std"]
 categories = ["no-std", "memory-management"]
 build = "build.rs"
-include = ["src/**", "csrc/**", "vendor/libarena/LICENSE*", "vendor/libarena/libarena/src/*.c", "vendor/libarena/libarena/include/**", "targets/**", "build.rs", "README.md", "LICENSE*"]
+include = [
+    "src/**",
+    "csrc/**",
+    "vendor/libarena/LICENSE*",
+    "vendor/libarena/libarena/src/*.c",
+    "vendor/libarena/libarena/include/**",
+    "vendor/libarena-compat/LICENSE*",
+    "vendor/libarena-compat/libarena/src/*.c",
+    "vendor/libarena-compat/libarena/include/**",
+    "targets/**",
+    "build.rs",
+    "README.md",
+    "LICENSE*",
+]
 
 [lib]
 name = "libarena_rs"
@@ -18,6 +31,9 @@ crate-type = ["rlib"]
 
 [features]
 default = ["panic-handler", "alloc-error-handler"]
+build-support = ["dep:tar"]
+# Select the compatibility snapshot instead of upstream libarena.
+compat = []
 # Declare `#[global_allocator] static GLOBAL: ArenaAlloc` in this crate instead
 # of in the program. Opt-in: with the shims defined outside the program crate,
 # rustc sees them only as `allockind` declarations and legally elides
@@ -31,6 +47,10 @@ panic-handler = []
 alloc-error-handler = []
 
 [dependencies]
+tar = { version = "0.4", optional = true }
+
+[build-dependencies]
+tar = "0.4"
 
 [workspace]
 members = ["linker"]
