@@ -76,8 +76,8 @@ the submodules record their source branches for maintainers.
 
 | Selection | Feature | Source branch | Pinned commit |
 |---|---|---|---|
-| Default | none | `main` | `ccd85ac828be5bc299a1260c6e26fc3b387d796d` |
-| Compatibility | `compat` | `compat-ccd85ac8` | `1f5202a6b2158b9ced4b2364aadbeb707e2f74e2` |
+| Default | none | `main` | `ec024ade42c4fc9c8a6268c3c06679941e93640d` |
+| Compatibility | `compat` | `compat-ccd85ac8` | `b6968918620807fcc7fdf2a7b165a06ca7a92c1c` |
 
 Copy `targets/bpfel-unknown-none-v4.json` next to it, and `.cargo/config.toml`:
 
