@@ -1,6 +1,6 @@
 [package]
 name = "libarena-rs"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 rust-version = "1.91"
 license = "LGPL-2.1-only OR BSD-2-Clause"
@@ -14,8 +14,8 @@ include = [
     "src/**",
     "csrc/**",
     "vendor/libarena/LICENSE*",
-    "vendor/libarena/libarena/src/*.c",
-    "vendor/libarena/libarena/include/**",
+    "vendor/libarena/src/*.c",
+    "vendor/libarena/include/**",
     "vendor/libarena-compat/LICENSE*",
     "vendor/libarena-compat/libarena/src/*.c",
     "vendor/libarena-compat/libarena/include/**",
