@@ -48,15 +48,15 @@ fn libarena_snapshot(root: &Path) -> (&'static str, PathBuf) {
     if env::var_os("CARGO_FEATURE_COMPAT").is_some() {
         ("-compat", root.join("vendor/libarena-compat/libarena"))
     } else {
-        ("", root.join("vendor/libarena/libarena"))
+        ("", root.join("vendor/libarena"))
     }
 }
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=csrc");
-    println!("cargo:rerun-if-changed=vendor/libarena/libarena/src");
-    println!("cargo:rerun-if-changed=vendor/libarena/libarena/include");
+    println!("cargo:rerun-if-changed=vendor/libarena/src");
+    println!("cargo:rerun-if-changed=vendor/libarena/include");
     println!("cargo:rerun-if-changed=vendor/libarena-compat/libarena/src");
     println!("cargo:rerun-if-changed=vendor/libarena-compat/libarena/include");
     let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
